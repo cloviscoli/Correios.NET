@@ -31,7 +31,7 @@ namespace Correios.NET
             //var config = Configuration.Default;
             //var context = BrowsingContext.New(config);
             //var document = context.OpenAsync(req => req.Content(html)).Result;            
-            
+
             var document = new HtmlParser().ParseDocument(html);
 
             var content = document.QuerySelector("div.ctrlcontent");
@@ -171,6 +171,55 @@ namespace Correios.NET
                 throw new ParseException("Rastreamento não encontrado.");
 
             return tracking;
+        }
+
+        #endregion
+
+        #region Delivery Prices
+
+
+        public static DeliveryPrice ParseDeliveryPrices(string mode, string html)
+        {
+            var document = new HtmlParser().ParseDocument(html);
+
+            var content = document.QuerySelector("div.ctrlcontent");
+
+            var error = document.QuerySelectorAll(".info.error").ToList();
+
+            if (error.Count > 0)
+                throw new ParseException("Não foi possível calcular o preço de entrega.", error.Select(x => x.Text()).ToArray());
+
+
+
+            var tableRows = content.QuerySelectorAll("table.comparaResult tr.destaque td").ToList();
+
+
+
+            Regex rgx = new Regex(@"\d+");
+
+
+            var termText = tableRows[0].Text();
+            var priceText = tableRows[1].Text();
+
+            var match = rgx.Match(termText);
+
+
+            decimal price;
+
+
+            decimal.TryParse(priceText, NumberStyles.Currency, new CultureInfo("pt-BR"), out price);
+
+
+            var deliveryPrice = new DeliveryPrice();
+
+            deliveryPrice.Mode = mode;
+            deliveryPrice.Days = match.Success ? int.Parse(match.Value) : -1;
+            deliveryPrice.Price = price;
+
+
+            return deliveryPrice;
+
+
         }
 
         #endregion
