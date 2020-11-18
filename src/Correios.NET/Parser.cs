@@ -1,17 +1,15 @@
-﻿using Correios.NET.Exceptions;
+﻿using AngleSharp.Dom;
+using AngleSharp.Html.Dom;
+using AngleSharp.Html.Parser;
+using AngleSharp.Text;
+using Correios.NET.Exceptions;
 using Correios.NET.Extensions;
 using Correios.NET.Models;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using AngleSharp;
-using AngleSharp.Html.Parser;
-using AngleSharp.Dom;
-using AngleSharp.Html.Dom;
-using System.Text.RegularExpressions;
 using System.Globalization;
-using AngleSharp.Text;
-using System.Linq.Expressions;
+using System.Linq;
+using System.Text.RegularExpressions;
 
 
 namespace Correios.NET
@@ -28,10 +26,6 @@ namespace Correios.NET
         /// <exception cref="Correios.NET.Exceptions.ParseException"></exception>
         public static IEnumerable<Address> ParseAddresses(string html)
         {
-            //var config = Configuration.Default;
-            //var context = BrowsingContext.New(config);
-            //var document = context.OpenAsync(req => req.Content(html)).Result;            
-
             var document = new HtmlParser().ParseDocument(html);
 
             var content = document.QuerySelector("div.ctrlcontent");
@@ -70,7 +64,6 @@ namespace Correios.NET
                     State = state
                 });
             }
-
 
             return list;
         }
@@ -132,6 +125,7 @@ namespace Correios.NET
 
             PackageTracking status = null;
             var tableRows = document.QuerySelectorAll("table.listEvent.sro tbody tr");
+
             if (tableRows.Length == 0)
                 throw new ParseException("Postagem não encontrada e/ou Aguardando postagem pelo remetente.");
 
@@ -181,45 +175,50 @@ namespace Correios.NET
         public static DeliveryPrice ParseDeliveryPrices(string mode, string html)
         {
             var document = new HtmlParser().ParseDocument(html);
-
             var content = document.QuerySelector("div.ctrlcontent");
-
             var error = document.QuerySelectorAll(".info.error").ToList();
 
             if (error.Count > 0)
                 throw new ParseException("Não foi possível calcular o preço de entrega.", error.Select(x => x.Text()).ToArray());
 
+            var tableCols = content.QuerySelectorAll("table.comparaResult tr.destaque td").ToList();
+            var termText = tableCols[0].Text();
+            var priceText = tableCols[1].Text();
 
-
-            var tableRows = content.QuerySelectorAll("table.comparaResult tr.destaque td").ToList();
-
-
-
-            Regex rgx = new Regex(@"\d+");
-
-
-            var termText = tableRows[0].Text();
-            var priceText = tableRows[1].Text();
-
+            var rgx = new Regex(@"\d+");
             var match = rgx.Match(termText);
+            decimal.TryParse(priceText, NumberStyles.Currency, new CultureInfo("pt-BR"), out decimal price);
 
+            var originDestinationCols = content.QuerySelectorAll("div.contentexpodados > table.comparaResult tr > td").ToList();
 
-            decimal price;
+            var originAddress = new Address
+            {
+                ZipCode = originDestinationCols[2].Text(),
+                Street = originDestinationCols[4].Text(),
+                District = originDestinationCols[6].Text(),
+                City = originDestinationCols[8].Text().Split('/')[0].Trim(),
+                State = originDestinationCols[8].Text().Split('/')[1].Trim(),
+            };
 
+            var destinationAddress = new Address
+            {
+                ZipCode = originDestinationCols[3].Text(),
+                Street = originDestinationCols[5].Text(),
+                District = originDestinationCols[7].Text(),
+                City = originDestinationCols[9].Text().Split('/')[0].Trim(),
+                State = originDestinationCols[9].Text().Split('/')[1].Trim(),
+            };
 
-            decimal.TryParse(priceText, NumberStyles.Currency, new CultureInfo("pt-BR"), out price);
-
-
-            var deliveryPrice = new DeliveryPrice();
-
-            deliveryPrice.Mode = mode;
-            deliveryPrice.Days = match.Success ? int.Parse(match.Value) : -1;
-            deliveryPrice.Price = price;
-
+            var deliveryPrice = new DeliveryPrice
+            {
+                Mode = mode,
+                Days = match.Success ? int.Parse(match.Value) : -1,
+                Price = price,
+                Origin = originAddress,
+                Destination = destinationAddress
+            };
 
             return deliveryPrice;
-
-
         }
 
         #endregion

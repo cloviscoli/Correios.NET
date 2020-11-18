@@ -1,18 +1,11 @@
-﻿using Correios.NET.Models;
+﻿using Correios.NET.Attributes;
+using Correios.NET.Exceptions;
+using Correios.NET.Models;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-﻿using AngleSharp.Dom;
-using Correios.NET.Attributes;
-using Correios.NET.Exceptions;
-using Correios.NET.Models;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Net.Http;
-using System.Reflection;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Correios.NET
@@ -21,7 +14,7 @@ namespace Correios.NET
     {
         private const string PACKAGE_TRACKING_URL = "https://www2.correios.com.br/sistemas/rastreamento/ctrl/ctrlRastreamento.cfm";
         private const string ZIP_ADDRESS_URL = "https://buscacep.correios.com.br/app/endereco/carrega-cep-endereco.php?endereco={0}&tipoCEP=ALL";
-        private const string DELIVERY_PRICES_ADDRESS_URL = "http://www.buscacep.correios.com.br/sistemas/precosPrazos/prazos.cfm";
+        private const string DELIVERY_PRICES_ADDRESS_URL = "http://www2.correios.com.br/sistemas/precosPrazos/prazos.cfm";
 
         private readonly HttpClient _httpClient;
 
@@ -55,7 +48,6 @@ namespace Correios.NET
             return GetPackageTrackingAsync(packageCode).Result;
         }
 
-
         public async Task<IEnumerable<Address>> GetAddressesAsync(string zipCode)
         {
             using (var response = await _httpClient.GetAsync(string.Format(ZIP_ADDRESS_URL, zipCode)))
@@ -86,8 +78,8 @@ namespace Correios.NET
         public async Task<IEnumerable<DeliveryPrice>> GetDeliveryPricesAsync(DateTime postDate, string originalZipCode, string deliveryZipCode, DeliveryOptions deliveryOptions,
             int height, int width, int length, float weight)
         {
-            originalZipCode = originalZipCode.Replace(".", "").Replace("-", "");
-            deliveryZipCode = originalZipCode.Replace(".", "").Replace("-", "");
+            //originalZipCode = originalZipCode.Replace(".", "").Replace("-", "");
+            //deliveryZipCode = originalZipCode.Replace(".", "").Replace("-", "");
 
             if (height < 2 || height > 100)
                 throw new PackageSizeException("A altura da caixa deve ter no mínimo 2cm e no máximo 100cm");
@@ -163,17 +155,12 @@ namespace Correios.NET
                 new KeyValuePair<string, string>("dataAtual", DateTime.Now.ToString("dd/MM/yyyy")),
                 new KeyValuePair<string, string>("cepOrigem", originalZipCode),
                 new KeyValuePair<string, string>("cepDestino", deliveryZipCode),
-
                 new KeyValuePair<string, string>("servico", deliveryOptionValue),
-
-                new KeyValuePair<string, string>("embalagem1", "outraEmbalagem1"), //TODO: Give to user the options
-                
+                new KeyValuePair<string, string>("embalagem1", "outraEmbalagem1"), //TODO: Give to user the options                
                 new KeyValuePair<string, string>("Altura", height.ToString()),
                 new KeyValuePair<string, string>("Largura", width.ToString()),
                 new KeyValuePair<string, string>("Comprimento", length.ToString()),
                 new KeyValuePair<string, string>("peso", weight.ToString()),
-
-
                 new KeyValuePair<string, string>("Selecao", ""),
                 new KeyValuePair<string, string>("embalagem2", ""),
                 new KeyValuePair<string, string>("Selecao1", ""),
