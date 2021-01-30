@@ -1,5 +1,6 @@
 ﻿using Correios.NET.Attributes;
 using Correios.NET.Exceptions;
+using Correios.NET.Extensions;
 using Correios.NET.Models;
 using Newtonsoft.Json;
 using System;
@@ -13,7 +14,7 @@ namespace Correios.NET
     public class Services : IServices
     {
         private const string PACKAGE_TRACKING_URL = "https://www2.correios.com.br/sistemas/rastreamento/ctrl/ctrlRastreamento.cfm";
-        private const string ZIP_ADDRESS_URL = "https://buscacep.correios.com.br/app/endereco/carrega-cep-endereco.php?endereco={0}&tipoCEP=ALL";
+        private const string ZIP_ADDRESS_URL = "https://buscacepinter.correios.com.br/app/endereco/carrega-cep-endereco.php?endereco={0}&tipoCEP=ALL";
         private const string DELIVERY_PRICES_ADDRESS_URL = "http://www2.correios.com.br/sistemas/precosPrazos/prazos.cfm";
 
         private readonly HttpClient _httpClient;
@@ -75,11 +76,10 @@ namespace Correios.NET
             return GetAddressesAsync(zipCode).Result;
         }
 
-        public async Task<IEnumerable<DeliveryPrice>> GetDeliveryPricesAsync(DateTime postDate, string originalZipCode, string deliveryZipCode, DeliveryOptions deliveryOptions,
-            int height, int width, int length, float weight)
+        public async Task<IEnumerable<DeliveryPrice>> GetDeliveryPricesAsync(DateTime postDate, string originalZipCode, string deliveryZipCode, DeliveryOptions deliveryOptions, int height, int width, int length, float weight)
         {
-            //originalZipCode = originalZipCode.Replace(".", "").Replace("-", "");
-            //deliveryZipCode = originalZipCode.Replace(".", "").Replace("-", "");
+            originalZipCode = originalZipCode.RemoveNonNumeric();
+            deliveryZipCode = deliveryZipCode.RemoveNonNumeric();
 
             if (height < 2 || height > 100)
                 throw new PackageSizeException("A altura da caixa deve ter no mínimo 2cm e no máximo 100cm");
@@ -122,27 +122,13 @@ namespace Correios.NET
             }
 
             return deliveryPrices;
-
-
         }
 
-        public IEnumerable<DeliveryPrice> GetDeliveryPrices(DateTime postDate, string originalZipCode, string deliveryZipCode, DeliveryOptions deliveryOptions,
-            int height, int width, int length, float weight)
+        public IEnumerable<DeliveryPrice> GetDeliveryPrices(DateTime postDate, string originalZipCode, string deliveryZipCode, DeliveryOptions deliveryOptions, int height, int width, int length, float weight)
         {
             return GetDeliveryPricesAsync(postDate, originalZipCode, deliveryZipCode, deliveryOptions, height, width, length, weight).Result;
         }
 
-
-        private FormUrlEncodedContent CreateAddressRequest(string zipCode)
-        {
-            var content = new FormUrlEncodedContent(new[]
-            {
-                new KeyValuePair<string, string>("relaxation", zipCode),
-                new KeyValuePair<string, string>("tipoCep", "ALL"),
-                new KeyValuePair<string, string>("semelhante", "N")
-            });
-            return content;
-        }
 
         private FormUrlEncodedContent CreateDeliveryPriceRequest(DateTime postDate, string originalZipCode, string deliveryZipCode, DeliveryOptions deliveryOption,
             int height, int width, int length, float weight)

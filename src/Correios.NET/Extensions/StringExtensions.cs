@@ -13,6 +13,11 @@ namespace Correios.NET.Extensions
             return Regex.Replace(text, @"(\r\n?|\n|\t)", SPACE.ToString()).Trim();
         }
 
+        public static string RemoveNonNumeric(this string text)
+        {
+            return Regex.Replace(text, "[^0-9.]", string.Empty);
+        }
+
         public static string RemoveHyphens(this string text)
         {
             return text.Replace(HYPHEN, string.Empty).Trim();
